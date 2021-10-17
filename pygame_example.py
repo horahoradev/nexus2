@@ -13,8 +13,8 @@ logger = logging.getLogger(__name__)
 FPS = 60
 RESOLUTION = 720, 480
 
-TILEBOARD_WIDTH = 40
-TILEBOARD_HEIGHT = 40
+TILEBOARD_WIDTH = 0
+TILEBOARD_HEIGHT = 0
 
 class TiledRenderer(object):
     """
@@ -27,9 +27,12 @@ class TiledRenderer(object):
         # self.size will be the pixel size of the map
         # this value is used later to render the entire map to a pygame surface
         self.pixel_size = tm.width * tm.tilewidth, tm.height * tm.tileheight
+        global TILEBOARD_HEIGHT, TILEBOARD_WIDTH
+        TILEBOARD_HEIGHT = tm.tileheight
+        TILEBOARD_WIDTH = tm .tilewidth
         self.tmx_data = tm
 
-    def render_map(self, surface):
+    def render_map(self, surface, offsets):
         """ Render our map to a pygame surface
 
         Feel free to use this as a starting point for your pygame app.
@@ -50,15 +53,15 @@ class TiledRenderer(object):
             # each layer can be handled differently by checking their type
 
             if isinstance(layer, TiledTileLayer):
-                self.render_tile_layer(surface, layer)
+                self.render_tile_layer(surface, layer, offsets)
 
             elif isinstance(layer, TiledObjectGroup):
-                self.render_object_layer(surface, layer)
+                self.render_object_layer(surface, layer, offsets)
 
             elif isinstance(layer, TiledImageLayer):
-                self.render_image_layer(surface, layer)
+                self.render_image_layer(surface, layer, offsets)
 
-    def render_tile_layer(self, surface, layer):
+    def render_tile_layer(self, surface, layer, offsets):
         """ Render all TiledTiles in this layer
         """
         # deref these heavily used references for speed
@@ -68,9 +71,9 @@ class TiledRenderer(object):
 
         # iterate over the tiles in the layer, and blit them
         for x, y, image in layer.tiles():
-            surface_blit(image, (x * tw, y * th))
+            surface_blit(image, (offsets[0] + x * tw, offsets[1] + y * th))
 
-    def render_object_layer(self, surface, layer):
+    def render_object_layer(self, surface, layer, offsets):
         """ Render all TiledObjects contained in this layer
         """
         # deref these heavily used references for speed
@@ -89,15 +92,15 @@ class TiledRenderer(object):
             # objects with points are polygons or lines
             if obj.image:
                 # some objects have an image; Tiled calls them "GID Objects"
-                surface_blit(obj.image, (obj.x, obj.y))
+                surface_blit(obj.image, (obj.x - offsets[0], obj.y - offsets[1]))
 
             else:
                 # use `apply_transformations` to get the points after rotation
                 draw_lines(surface, rect_color, obj.closed, obj.apply_transformations(), 3)
 
-    def render_image_layer(self, surface, layer):
+    def render_image_layer(self, surface, layer, offsets):
         if layer.image:
-            surface.blit(layer.image, (0, 0))
+            surface.blit(layer.image, (-offsets[0], -offsets[1]))
 
 
 
@@ -118,6 +121,11 @@ class Renderable:
         self.y = posy
         self.w = image.get_width()
         self.h = image.get_height()
+
+class PlayerControlled:
+    def __init__(self):
+        return
+
 
 filename = "data/sewers.tmx"
 
@@ -155,24 +163,27 @@ class TileboardRenderer(esper.Processor):
     def process(self):
         """ Draw our map to some surface (probably the display)
         """
-        # first we make a temporary surface that will accommodate the entire
-        # size of the map.
-        # because this demo does not implement scrolling, we render the
-        # entire map each frame
-        temp = pygame.Surface(self.renderer.pixel_size)
+        for ent, (vel, rend, pc) in self.world.get_components(Velocity, Renderable, PlayerControlled):
+            # first we make a temporary surface that will accommodate the entire
+            # size of the map.
+            # because this demo does not implement scrolling, we render the
+            # entire map each frame
+            temp = pygame.Surface(self.renderer.pixel_size)
 
-        # render the map onto the temporary surface
-        self.renderer.render_map(temp)
+            # render the map onto the temporary surface
+            self.renderer.render_map(temp, (-rend.x, -rend.y))
 
-        # now resize the temporary surface to the size of the display
-        # this will also 'blit' the temp surface to the display
-        pygame.transform.smoothscale(temp, self.window.get_size(), self.window)
+            # now resize the temporary surface to the size of the display
+            # this will also 'blit' the temp surface to the display
+            # pygame.transform.(temp, self.window.get_size(), self.window)
+            self.window.blit(temp, (0, 0))
 
-        # display a bit of use info on the display
-        f = pygame.font.Font(pygame.font.get_default_font(), 20)
-        i = f.render('press any key for next map or ESC to quit',
-                     1, (180, 180, 0))
-        self.window.blit(i, (0, 0))
+
+            # display a bit of use info on the display
+            # f = pygame.font.Font(pygame.font.get_default_font(), 20)
+            # i = f.render('press any key for next map or ESC to quit',
+            #              1, (180, 180, 0))
+            # self.window.blit(i, (0, 0))
 
 
 class MovementProcessor(esper.Processor):
@@ -187,16 +198,16 @@ class MovementProcessor(esper.Processor):
     def process(self):
         # This will iterate over every Entity that has BOTH of these components:
         if self.next_movement < datetime.datetime.now():
-            for ent, (vel, rend) in self.world.get_components(Velocity, Renderable):
+            for ent, (vel, rend, pc) in self.world.get_components(Velocity, Renderable, PlayerControlled):
                 # Update the Renderable Component's position by it's Velocity:
                 rend.x += vel.x * TILEBOARD_WIDTH
                 rend.y += vel.y * TILEBOARD_WIDTH
                 # An example of keeping the sprite inside screen boundaries. Basically,
                 # adjust the position back inside screen boundaries if it tries to go outside:
-                rend.x = max(self.minx, rend.x)
-                rend.y = max(self.miny, rend.y)
-                rend.x = min(self.maxx - rend.w, rend.x)
-                rend.y = min(self.maxy - rend.h, rend.y)
+                # rend.x = max(self.minx, rend.x)
+                # rend.y = max(self.miny, rend.y)
+                # rend.x = min(self.maxx - rend.w, rend.x)
+                # rend.y = min(self.maxy - rend.h, rend.y)
                 self.next_movement = self.next_movement + datetime.timedelta(0, 0.25)
 
 
@@ -212,7 +223,7 @@ class RenderProcessor(esper.Processor):
         # This will iterate over every Entity that has this Component, and blit it:
         for ent, rend in self.world.get_component(Renderable):
             rend.image = pygame.transform.scale(rend.image, (TILEBOARD_WIDTH, TILEBOARD_HEIGHT))
-            self.window.blit(rend.image, (rend.x, rend.y))
+            self.window.blit(rend.image, (RESOLUTION[0]/2, RESOLUTION[1]/2))
         # Flip the framebuffers
         pygame.display.flip()
 
@@ -233,6 +244,7 @@ def run():
     player = world.create_entity()
     world.add_component(player, Velocity(x=0, y=0))
     world.add_component(player, Renderable(image=pygame.image.load("data/acid1.png"), posx=100, posy=100))
+    world.add_component(player, PlayerControlled())
     # Another motionless Entity:
     enemy = world.create_entity()
     world.add_component(enemy, Renderable(image=pygame.image.load("data/acid1.png"), posx=400, posy=250))
