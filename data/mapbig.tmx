@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.5" tiledversion="1.7.1" orientation="orthogonal" renderorder="right-down" width="100" height="50" tilewidth="25" tileheight="25" infinite="0" nextlayerid="4" nextobjectid="3">
+ <tileset firstgid="1" name="Grass1" tilewidth="25" tileheight="25" tilecount="784" columns="28">
+  <image source="Grass1.jpg" width="700" height="700"/>
+ </tileset>
+ <tileset firstgid="785" name="wall" tilewidth="25" tileheight="25" tilecount="4" columns="2">
+  <image source="wall.png" width="50" height="50"/>
+ </tileset>
+ <tileset firstgid="789" name="pod" tilewidth="25" tileheight="25" tilecount="54" columns="9">
+  <image source="pod.png" width="230" height="163"/>
+ </tileset>
+ <tileset firstgid="843" name="tree1" tilewidth="25" tileheight="25" tilecount="16" columns="4">
+  <image source="tree1.png" width="100" height="112"/>
+ </tileset>
+ <layer id="1" name="set" width="100" height="50">
+  <properties>
+   <property name="set" value=""/>
+  </properties>
+  <data encoding="base64" compression="zlib">
+   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
+  </data>
+ </layer>
+ <layer id="2" name="tree" width="100" height="50">
+  <data encoding="base64" compression="zlib">
+   eJztmodqw0AQRAX+gvTee++99+4UJ1GS//+QjCEGQbBPV7V72oGHDcqddKvZuTMkSUTU1F5JkraK2aeMdTe2oU5876iYfcpYd2NFIpFaXeiVbtADekEf6AcDYBAMSS8F1TDqPQJGwRgYBxNgEkyBaXkf1npADR/BE6gq6jmD67NgDsyDBbAIlsAyWFGM17lXWfWMuryAV/CmqNEqrq+BdbABNsEW2AY7YFcxXudeoWTrEdceq2GOd/ABPhXz7eH6PjgAh+AIHIMTcArOFON17hVKth5x7bEUc3yBb/CjmO8c1y/AJbgC1+AG3II7cK8Yr3OvULL1CEWPcZatRyh6zKVkz6clkzxO//4uVo8WKcljWvKVx5KDtETxt0+ZRTkHQ/UupYygfC4N1buxZ4TKb3n9GKp3KWeEC6n8ltePoXo3z30oZZquVH7j6EfOmabyG+U9q5k4eihmUfcQ5zylKpuacs5TqrKpqeTpf9lmhk1NQ+Wpj1z0lbW2mUF9j6rLRy76ylpOmWHqSR9rbDWnTe9w8HdDpp70scZWc5blnMKll7k8p6249DKX5xSFkfzOpiWT/Svmd1j02kz2LxdnkKLX3UxFn69M9i8XZ5Ci191MedZGzUsuziBUz5V51kbVSzaifq6sP1/2/zuzouqlMqrxnlx5iVr2lV0xZh9nccy+mHuawj6qW1/pab/SrS/HnuYk3fpS6OnYlD3Ph6pvTd4dKaWZ9yF9VYx+AarlqlI=
+  </data>
+ </layer>
+ <objectgroup id="3" name="triggers">
+  <object id="1" name="player" x="169" y="323" width="50" height="50">
+   <properties>
+    <property name="player" value=""/>
+   </properties>
+  </object>
+  <object id="2" name="pod" x="47" y="125" width="219" height="147">
+   <properties>
+    <property name="pod" value=""/>
+   </properties>
+  </object>
+ </objectgroup>
+</map>
