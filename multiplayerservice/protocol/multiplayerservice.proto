@@ -45,4 +45,19 @@ message ServerMove {
     string playerUUID = 3;
 }
 
-messag e
+message ServerNavigate {
+    string maploc = 1;
+    string audioloc = 2;
+    repeated PlayerJoin players = 3;
+}
+
+message ServerChat {
+    string playerUUID = 1;
+    string message = 2;
+}
+
+message PlayerJoin {
+    string spriteloc = 1;
+    int64 x = 2;
+    int64 y = 3;
+}
