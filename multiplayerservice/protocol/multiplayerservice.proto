@@ -1,0 +1,48 @@
+syntax = "proto3";
+option go_package = "github.com/horahoradev/nexus2";
+
+package proto;
+
+service MultiplayerService {
+    rpc Login (stream ClientMessage) returns (stream ServerMessage) {}
+}
+
+
+message ClientMessage {
+    oneof Payload {
+        ClientMove movemsg = 1; // publish new location
+        ClientNavigate navigatemsg = 2; // Navigate to another map, receive map info
+        ClientChat chatmsg = 3; // This was added after the above two fields, and is used for the metadata.json file for the video
+    }
+}
+
+message ServerMessage {
+    oneof Payload {
+        ServerMove movemsg = 1; // subscription messages indicating new locations for other players
+        ServerNavigate navigateresp = 2; // resp to client navigation request, indicates new map resource location and e.g. music
+        // Includes list of all players, models, and locations
+        ServerChat chatmsg = 3; // chat messages for current room
+        PlayerJoin joinmsg = 4; // indicates model and starting position for new players
+    }
+}
+
+message ClientMove {
+    int64 x = 1;
+    int64 y = 2;
+}
+
+message ClientNavigate {
+    string mapID = 1; // uuid
+}
+
+message ClientChat {
+    string message = 1;
+}
+
+message ServerMove {
+    int64 x = 1;
+    int64 y = 2;
+    string playerUUID = 3;
+}
+
+messag e
