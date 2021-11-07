@@ -1,0 +1,7 @@
+version: "3"
+services:
+  react_app:
+    build: multiplayerservice
+    restart: always
+    ports:
+      - "7777:7777"

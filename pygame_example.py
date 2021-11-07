@@ -7,7 +7,27 @@ from pytmx import TiledObjectGroup
 from pytmx import TiledTileLayer
 from pytmx.util_pygame import load_pygame
 import logging
+import asyncio
+import grpc
+
+import multiplayerservice_pb2
+import multiplayerservice_pb2_grpc
 logger = logging.getLogger(__name__)
+
+
+event_queue = asyncio.Queue()
+def client_event_gen():
+    return [multiplayerservice_pb2.ClientMove(x=1, y=1)]
+    # while True:
+    #     yield await event_queue.get()
+
+# Whatever nerd
+# GRPC initialization
+def manage_grpc():
+    channel = grpc.insecure_channel('127.0.0.1:7777')
+    stub = multiplayerservice_pb2_grpc.MultiplayerServiceStub(channel)
+    # What a strange pattern
+    stub.Login(client_event_gen())
 
 
 FPS = 60
@@ -217,10 +237,10 @@ class MovementProcessor(esper.Processor):
                 new_y = rend.y + vel.y * TILEBOARD_HEIGHT
 
                 coord_key = "%s,%s" % (int(new_x / TILEBOARD_WIDTH), int(new_y / TILEBOARD_HEIGHT))
-                print(coord_key)
+
                 if coord_key in COLLISION_MAP:
                     return
-
+                event_queue.put(multiplayerservice_pb2.ClientMove(x=new_x, y=new_y))
                 rend.x = new_x
                 rend.y = new_y
                 # An example of keeping the sprite inside screen boundaries. Basically,
@@ -248,7 +268,6 @@ class RenderProcessor(esper.Processor):
         # Flip the framebuffers
         pygame.display.flip()
 
-
 ################################
 #  The main core of the program:
 ################################
@@ -259,6 +278,8 @@ def run():
     pygame.display.set_caption("Esper Pygame example")
     clock = pygame.time.Clock()
     pygame.key.set_repeat(1, 1)
+
+    manage_grpc()
 
     # Initialize Esper world, and create a "player" Entity with a few Components.
     world = esper.World()

@@ -62,6 +62,7 @@ func (g GrpcServer) Login(stream proto.MultiplayerService_LoginServer) error {
 		}
 
 		switch msg := clientMsg.Payload.(type) {
+			log.Infof("HANDLING EVENT")
 		case *proto.ClientMessage_Movemsg:
 			err = g.pubsubHelper.PublishMove(moveMsg{
 				x:          msg.Movemsg.X,
