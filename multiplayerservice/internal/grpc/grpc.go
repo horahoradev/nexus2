@@ -1,6 +1,7 @@
 package grpc
 
 import (
+	"fmt"
 	"google.golang.org/grpc"
 	proto "github.com/horahoradev/nexus2/multiplayerservice/protocol"
 	"context"
@@ -9,13 +10,19 @@ import (
 )
 
 
-var _ *proto.MultiplayerServiceServer = (*GrpcServer)(nil)
+var _ proto.MultiplayerServiceServer = (*GrpcServer)(nil)
 
 type GrpcServer struct {
+	playerLocMap map[string]string
+	pubsubHelper MapPubsubManager
+	proto.UnimplementedMultiplayerServiceServer
 }
 
 func New() (GrpcServer, error){
-	return GrpcServer{}, nil
+	return GrpcServer{
+		playerLocMap: make(map[string]string),
+		pubsubHelper: NewPubsubManager(),
+	}, nil
 }
 
 const (
@@ -24,8 +31,6 @@ const (
 
 func (g *GrpcServer) Login(stream proto.MultiplayerService_LoginServer) error {
 	for {
-
-
 		// Client gets their own UUID
 		uuid, err := guuid.NewUUID()
 		if err != nil {
@@ -34,20 +39,63 @@ func (g *GrpcServer) Login(stream proto.MultiplayerService_LoginServer) error {
 		}
 
 		clientUUID := uuid.String()
+		g.playerLocMap[clientUUID] =  defaultMapID
+
 
 		clientMsg, err := stream.Recv()
 		if err != nil {
 			log.Errorf("recv err: %s", err))
 		}
 
-		switch clientMsg.(type) {
-		case proto.ClientMessage_Movemsg:
+		switch msg := clientMsg.Payload.(type) {
+		case *proto.ClientMessage_Movemsg:
+			err = g.pubsubHelper.PublishMove(moveMsg{
+				x:          msg.Movemsg.X,
+				y:          msg.Movemsg.Y,
+				playerUUID: clientUUID,
+			}, g.playerLocMap[clientUUID])
+			if err != nil {
+				log.Errorf("could not publish move. Err: %s", err)
+			}
 
+		case *proto.ClientMessage_Navigatemsg:
+			oldMapID, ok := g.playerLocMap[clientUUID]
+			g.playerLocMap[clientUUID] =  msg.Navigatemsg.MapID
+			if ok {
+				err = g.pubsubHelper.Subscribe(clientUUID, g.playerLocMap[clientUUID], &oldMapID )
+				if err != nil {
+					log.Errorf("Could not subscribe. Err: %s", err)
+				}
+			} else {
+				g.pubsubHelper.Subscribe(clientUUID, g.playerLocMap[clientUUID], nil )
+				if err != nil {
+					log.Errorf("Could not subscribe. Err: %s", err)
+				}
+			}
 
-		case proto.ClientMessage_Navigatemsg:
+			resp := proto.ServerMessage{Payload:
+				&proto.ServerMessage_Navigateresp{
+					Navigateresp: &proto.ServerNavigate{
+						Maploc:   fmt.Sprintf("./%s.tmx", msg.Navigatemsg.MapID),
+						Audioloc: "", // TODO
+						Players:  nil,
+					},
+				},
+			}
+			
+			err = stream.Send(&resp)
+			if err != nil {
+				log.Errorf("Error sending navigate resp: %s", err)
+			}
 
-		case proto.ClientMessage_Chatmsg:
-
+		case *proto.ClientMessage_Chatmsg:
+			err = g.pubsubHelper.PublishChat(chatMsg{
+				message: msg.Chatmsg.Message,
+				playerUUID: clientUUID,
+			}, g.playerLocMap[clientUUID])
+			if err != nil {
+				log.Errorf("could not publish chat message. Err: %s", err)
+			}
 		default:
 			log.Errorf("Unknown client message!")
 		}
@@ -58,7 +106,11 @@ func (g *GrpcServer) Login(stream proto.MultiplayerService_LoginServer) error {
 type MapPubsubManager struct {
 	// Map ID to player UUID
 	playerChanMap map[string]map[string]playerChans
-	playerLocMap map[string]string
+}
+
+func NewPubsubManager() MapPubsubManager{
+	return MapPubsubManager{playerChanMap:make(map[string]map[string]playerChans),
+	}
 }
 
 type playerChans struct {
@@ -75,13 +127,13 @@ type chatMsg struct {
 	playerUUID, message string
 }
 
-func (m *MapPubsubManager) Subscribe(playerUUID, mapID string) error {
+func (m *MapPubsubManager) Subscribe(playerUUID, mapID string, oldMapID *string) error {
 	_, ok := m.playerChanMap[defaultMapID]
 	if !ok {
-		m.playerChanMap[defaultMapID] = make(map[string]chan string)
+		m.playerChanMap[defaultMapID] = make(map[string]playerChans)
 	}
 
-	err := m.movePlayerChanInfo(playerUUID, mapID)
+	err := m.movePlayerChanInfo(playerUUID, mapID, oldMapID)
 	if err != nil {
 		return err
 	}
@@ -101,23 +153,23 @@ func (m *MapPubsubManager) PublishChat(msg chatMsg, mapID string) error {
 	}
 }
 
-func (m *MapPubsubManager) movePlayerChanInfo(playerUUID, mapID string) error {
-	// Where is the player's current location?
-	oldLoc, ok := m.playerLocMap[playerUUID]
-	if !ok {
+func (m *MapPubsubManager) movePlayerChanInfo(playerUUID, mapID string, oldmapID *string) error {
+	if oldmapID == nil {
 		// Player doesn't have a location, new login?
-		m.playerLocMap[playerUUID] = mapID
 
 		newChans :=  playerChans{
 			moveChan: make(chan moveMsg),
 			chatChan: make(chan chatMsg),
 		}
 		m.playerChanMap[mapID][playerUUID] = newChans
+
+		// Return early, no move to perform
+		return nil
 	}
 
-	val := m.playerChanMap[oldLoc][playerUUID]
+	val := m.playerChanMap[*oldmapID][playerUUID]
 	// Move to new location
-	delete(m.playerChanMap[oldLoc], playerUUID)
+	delete(m.playerChanMap[*oldmapID], playerUUID)
 	m.playerChanMap[mapID][playerUUID] = val
 
 	return nil
