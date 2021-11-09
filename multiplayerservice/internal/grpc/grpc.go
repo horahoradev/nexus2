@@ -37,6 +37,8 @@ func NewGRPCServer(ctx context.Context, port int) error {
 		serv.GracefulStop()
 	}()
 
+	log.Infof("Serving grpc server on port %d", port)
+
 	return serv.Serve(lis)
 }
 
@@ -45,6 +47,7 @@ const (
 )
 
 func (g GrpcServer) Login(stream proto.MultiplayerService_LoginServer) error {
+	log.Infof("Handling login request")
 	for {
 		// Client gets their own UUID
 		uuid, err := guuid.NewUUID()
@@ -59,11 +62,13 @@ func (g GrpcServer) Login(stream proto.MultiplayerService_LoginServer) error {
 		clientMsg, err := stream.Recv()
 		if err != nil {
 			log.Errorf("recv err: %s", err)
+			return err
 		}
 
+		log.Info(clientMsg)
 		switch msg := clientMsg.Payload.(type) {
-			log.Infof("HANDLING EVENT")
 		case *proto.ClientMessage_Movemsg:
+			log.Infof("HANDLING EVENT")
 			err = g.pubsubHelper.PublishMove(moveMsg{
 				x:          msg.Movemsg.X,
 				y:          msg.Movemsg.Y,

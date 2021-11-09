@@ -9,25 +9,39 @@ from pytmx.util_pygame import load_pygame
 import logging
 import asyncio
 import grpc
+import time
 
 import multiplayerservice_pb2
 import multiplayerservice_pb2_grpc
 logger = logging.getLogger(__name__)
 
 
+# See: https://github.com/ridha/grpc-streaming-demo/blob/master/client.py
 event_queue = asyncio.Queue()
 def client_event_gen():
-    return [multiplayerservice_pb2.ClientMove(x=1, y=1)]
+    payload = multiplayerservice_pb2.ClientMove(x=1, y=1)
+    req = multiplayerservice_pb2.ClientMessage(movemsg=payload)
+    while True:
+        yield req
     # while True:
     #     yield await event_queue.get()
 
 # Whatever nerd
 # GRPC initialization
 def manage_grpc():
-    channel = grpc.insecure_channel('127.0.0.1:7777')
+    payload = multiplayerservice_pb2.ClientMove(x=1, y=1)
+    req = multiplayerservice_pb2.ClientMessage(movemsg=payload)
+
+    channel = grpc.insecure_channel('127.0.0.1:5555')
     stub = multiplayerservice_pb2_grpc.MultiplayerServiceStub(channel)
+
     # What a strange pattern
-    stub.Login(client_event_gen())
+    resps = stub.Login(client_event_gen())
+    try:
+        for r in resps:
+            print(f"Prime factor = {r.result}")
+    except grpc._channel._Rendezvous as err:
+        print(err)
 
 
 FPS = 60
@@ -240,7 +254,7 @@ class MovementProcessor(esper.Processor):
 
                 if coord_key in COLLISION_MAP:
                     return
-                event_queue.put(multiplayerservice_pb2.ClientMove(x=new_x, y=new_y))
+                # event_queue.put(multiplayerservice_pb2.ClientMove(x=new_x, y=new_y))
                 rend.x = new_x
                 rend.y = new_y
                 # An example of keeping the sprite inside screen boundaries. Basically,

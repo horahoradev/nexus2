@@ -13,4 +13,4 @@ COPY gen_all.sh /bin/gen_all.sh
 
 WORKDIR /
 
-ENTRYPOINT ["/bin/gen_all.sh"]
+#ENTRYPOINT ["/bin/gen_all.sh"]

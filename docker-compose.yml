@@ -4,4 +4,4 @@ services:
     build: multiplayerservice
     restart: always
     ports:
-      - "7777:7777"
+      - "5555:5555"
