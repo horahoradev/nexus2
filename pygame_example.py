@@ -7,9 +7,9 @@ from pytmx import TiledObjectGroup
 from pytmx import TiledTileLayer
 from pytmx.util_pygame import load_pygame
 import logging
-import asyncio
 import grpc
 import time
+import queue, threading
 
 import multiplayerservice_pb2
 import multiplayerservice_pb2_grpc
@@ -17,21 +17,14 @@ logger = logging.getLogger(__name__)
 
 
 # See: https://github.com/ridha/grpc-streaming-demo/blob/master/client.py
-event_queue = asyncio.Queue()
+event_queue = queue.Queue()
 def client_event_gen():
-    payload = multiplayerservice_pb2.ClientMove(x=1, y=1)
-    req = multiplayerservice_pb2.ClientMessage(movemsg=payload)
     while True:
-        yield req
-    # while True:
-    #     yield await event_queue.get()
+        yield event_queue.get()
 
 # Whatever nerd
 # GRPC initialization
 def manage_grpc():
-    payload = multiplayerservice_pb2.ClientMove(x=1, y=1)
-    req = multiplayerservice_pb2.ClientMessage(movemsg=payload)
-
     channel = grpc.insecure_channel('127.0.0.1:5555')
     stub = multiplayerservice_pb2_grpc.MultiplayerServiceStub(channel)
 
@@ -254,7 +247,12 @@ class MovementProcessor(esper.Processor):
 
                 if coord_key in COLLISION_MAP:
                     return
-                # event_queue.put(multiplayerservice_pb2.ClientMove(x=new_x, y=new_y))
+
+                if vel.x > 0 or vel.y > 0:
+                    payload = multiplayerservice_pb2.ClientMove(x=new_x, y=new_y)
+                    req = multiplayerservice_pb2.ClientMessage(movemsg=payload)
+
+                    event_queue.put(req)
                 rend.x = new_x
                 rend.y = new_y
                 # An example of keeping the sprite inside screen boundaries. Basically,
@@ -293,7 +291,7 @@ def run():
     clock = pygame.time.Clock()
     pygame.key.set_repeat(1, 1)
 
-    manage_grpc()
+    threading.Thread(target=manage_grpc, daemon=True).start()
 
     # Initialize Esper world, and create a "player" Entity with a few Components.
     world = esper.World()
